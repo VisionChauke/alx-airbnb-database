@@ -1,47 +1,59 @@
-# Index Performance Optimization
+CREATE TABLE User (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(100),
+    email VARCHAR(255),
+    created_at DATETIME
+);
 
-Action 1: Identify High-Usage Columns
-Based on earlier queries, these columns are frequently used in WHERE, JOIN, and ORDER BY clauses:
+CREATE TABLE Property (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    owner_id INT,
+    title VARCHAR(255),
+    location VARCHAR(255),
+    price_per_night DECIMAL(10,2),
+    created_at DATETIME,
+    FOREIGN KEY (owner_id) REFERENCES User(id)
+);
 
-Table    Column    Usage Context
-User    user_id    JOINs, filters
-Booking    user_id    JOINs, WHERE, GROUP BY
-Booking    property_id    JOINs, filters
-Property    property_id    JOINs, filters, ORDER BY
+CREATE TABLE Booking (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT,
+    property_id INT,
+    check_in DATE,
+    check_out DATE,
+    status VARCHAR(50),
+    created_at DATETIME,
+    FOREIGN KEY (user_id) REFERENCES User(id),
+    FOREIGN KEY (property_id) REFERENCES Property(id)
+);
+-- 1. Get all bookings for a user
+SELECT * FROM Booking WHERE user_id = 5;
 
-Action 2: SQL CREATE INDEX Commands
-Save the following code into a file named: database_index.sql
+-- 2. Search properties in a specific location ordered by price
+SELECT * FROM Property WHERE location = 'Cape Town' ORDER BY price_per_night;
 
-sql
-Copy
-Edit
--- Index on user_id in User table
-CREATE INDEX idx_user_user_id ON User(user_id);
+-- 3. Join user and bookings
+SELECT u.username, b.status, b.check_in
+FROM User u
+JOIN Booking b ON u.id = b.user_id
+WHERE b.status = 'confirmed';
 
--- Index on user_id in Booking table
+-- 4. Find all properties owned by a user
+SELECT * FROM Property WHERE owner_id = 5;
+-- For Booking table
 CREATE INDEX idx_booking_user_id ON Booking(user_id);
+CREATE INDEX idx_booking_status ON Booking(status);
+CREATE INDEX idx_booking_created_at ON Booking(created_at);
 
--- Index on property_id in Booking table
-CREATE INDEX idx_booking_property_id ON Booking(property_id);
+-- For Property table
+CREATE INDEX idx_property_location ON Property(location);
+CREATE INDEX idx_property_price ON Property(price_per_night);
+CREATE INDEX idx_property_owner_id ON Property(owner_id);
 
--- Index on property_id in Property table
-CREATE INDEX idx_property_property_id ON Property(property_id);
+-- For User table
+CREATE INDEX idx_user_email ON User(email);
+CREATE INDEX idx_user_created_at ON User(created_at);
+EXPLAIN SELECT * FROM Booking WHERE user_id = 5;
+EXPLAIN SELECT * FROM Property WHERE location = 'Cape Town' ORDER BY price_per_night;
+EXPLAIN SELECT u.username, b.status FROM User u JOIN Booking b ON u.id = b.user_id WHERE b.status = 'confirmed';
 
-Action 3: Measure Query Performance with EXPLAIN
-how to measure performance before and after using EXPLAIN or EXPLAIN ANALYZE:
-
-Example: Analyze performance of total bookings per user query
-sql
-Copy
-Edit
-EXPLAIN ANALYZE
-SELECT
-    u.user_id,
-    u.name,
-    COUNT(b.booking_id) AS total_bookings
-FROM
-    User u
-JOIN
-    Booking b ON u.user_id = b.user_id
-GROUP BY
-    u.user_id, u.name;
